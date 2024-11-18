@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Myla-Messager Extension",
+  "version": "1.0.0",
+  "description": "Myla-Messager Extension",
+  "permissions": ["storage", "activeTab", "notifications", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "icons": {
+    "128": "icon.png"
+  },
+  "action": {
+    "default_title": "Myla-Messager Extension",
+    "default_icon": "icon.png",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "css": ["src/css/messager.css"],
+      "js": ["dist/messager.js"],
+      "matches": ["*://*.facebook.com/messages/*"]
+    },
+    {
+      "css": ["src/css/messager.css"],
+      "js": ["dist/facebook.js"],
+      "matches": ["*://www.facebook.com/*"],
+      "exclude_matches": ["*://www.facebook.com/messages/*"]
+    },
+    {
+      "css": ["src/css/messager.css"],
+      "js": ["dist/business.js"],
+      "matches": ["*://*.business.facebook.com/*"]
+    }
+  ],
+  "background": {
+    "service_worker": "dist/background.js"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self';"
+  }
+}
