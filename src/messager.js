@@ -3,7 +3,7 @@ import {
   CLIPVisionModelWithProjection,
   RawImage,
 } from "@xenova/transformers";
-alert('mess')
+alert('mess2')
 let scrollInterval;
 let allMessages = []; 
 let seenMessages = new Set(); 
@@ -67,10 +67,10 @@ observer.observe(document.body, { childList: true, subtree: true });
 let scrollIntervalTop;
 function scrollMax() {
   const messageContainer = document.querySelector(
-    ".x78zum5.xdt5ytf.x1iyjqo2.x6ikm8r.x1odjw0f.x16o0dkt"
+    ".x1uipg7g.xu3j5b3.xol2nv.xlauuyb.x26u7qi.x19p7ews.x78zum5.xdt5ytf.x1iyjqo2.x6ikm8r.x10wlt62 div div"
   );
+  console.log(messageContainer)
   if (!messageContainer) return;
-
   scrollIntervalTop = setInterval(() => {
     const divTop = document.querySelector(
       ".html-div.xdj266r.x11i5rnm.xat24cr.x1mh8g0r.xexx8yu.x4uap5.x18d9i69.xkhd6sd.x1h91t0o.xkh2ocl.x78zum5.xdt5ytf.x193iq5w.x1iyjqo2.x1eb86dx.x1nhvcw1"
@@ -85,13 +85,13 @@ function scrollMax() {
       return;
     }
     messageContainer.scrollTop -= 1000;
-
+     
   }, 300);
 }
 
 function getMessage() {
   const messageContainer = document.querySelector(
-    ".x78zum5.xdt5ytf.x1iyjqo2.x6ikm8r.x1odjw0f.x16o0dkt"
+    ".x1uipg7g.xu3j5b3.xol2nv.xlauuyb.x26u7qi.x19p7ews.x78zum5.xdt5ytf.x1iyjqo2.x6ikm8r.x10wlt62 div div"
   );
 
   if (!messageContainer) return; 
