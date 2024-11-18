@@ -4,8 +4,8 @@ import {
   RawImage,
 } from "@xenova/transformers";
 let scrollInterval;
-let allMessages = []; 
-let seenMessages = new Set(); 
+let allMessages = [];
+let seenMessages = new Set();
 
 const processor = await AutoProcessor.from_pretrained(
   "Xenova/clip-vit-base-patch16"
@@ -110,7 +110,7 @@ function getMessage() {
     ".x2atdfe.xb57i2i.x1q594ok.x5lxg6s.x78zum5.xdt5ytf.x1n2onr6.x1ja2u2z.xw2csxc.x7p5m3t.x1odjw0f.x1e4zzel.xh8yej3.x5yr21d"
   );
 
-  if (!messageContainer) return; 
+  if (!messageContainer) return;
   const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
   scrollInterval = setInterval(async () => {
     const messageElements = Array.from(document.querySelectorAll(
@@ -125,12 +125,12 @@ function getMessage() {
       if (messageData && Array.isArray(messageData)) {
         messageData.forEach((data) => {
           const uniqueMessageId = generateHash(data);
-      
-            console.log('Adding message:', data);
-            allMessages.push(data); // Thêm toàn bộ đối tượng vào mảng allMessages
-            seenMessages.add(uniqueMessageId);
+
+          console.log('Adding message:', data);
+          allMessages.push(data); // Thêm toàn bộ đối tượng vào mảng allMessages
+          seenMessages.add(uniqueMessageId);
         });
-      
+
         messageElement.setAttribute('data-processed', 'true'); // Đánh dấu đã xử lý
       }
     }
@@ -175,7 +175,7 @@ async function stopScroll() {
     scrollInterval = null;
 
     for (const message of allMessages) {
-      if(message.imageUrl) {
+      if (message.imageUrl) {
         const vector = await convert2Vector(message.imageUrl);
         console.log(vector.data)
         message.imageUrl = vector.data;
@@ -197,9 +197,9 @@ function isElementInViewport(el) {
   const windowWidth = window.innerWidth || document.documentElement.clientWidth;
 
   return (
-    rect.top >= 0 && 
+    rect.top >= 0 &&
     rect.left >= 0 &&
-    rect.bottom <= windowHeight &&  
+    rect.bottom <= windowHeight &&
     rect.right <= windowWidth
   );
 }
@@ -222,23 +222,39 @@ async function extractMessageContent(messageElement) {
       let imageUrl = ""; // URL hình ảnh (nếu có)
 
       if (child.nodeType === Node.ELEMENT_NODE) {
-        const spansContent = extractAllSpans(child); 
-        if (spansContent.length > 0) {
-          content = spansContent.join(" "); 
+        console.log("child", child);
+      
+        // Kiểm tra nếu là thẻ chứa reply
+        if (
+          child.querySelector(
+            ".x10wlt62.x1x4tb0q.x1k70j0n.x11i5rnm.xzueoph.x1mh8g0r.x1y1aw1k.xn6708d.xx6bls6.x1ye3gou.x1n2onr6"
+          )
+        ) {
+          const replyDiv = child.querySelector("span");
+          if (replyDiv) {
+            contentReply = replyDiv.innerText.trim(); // Lấy nội dung reply
+          }
         }
-
+      
+        // Xử lý nội dung chính
+        const spansContent = extractAllSpans(child);
+        if (spansContent.length > 0) {
+          content += spansContent.join(" ");
+        }
+      
+        // Cắt bỏ nội dung reply khỏi nội dung chính (nếu có)
+        if (contentReply && content.includes(contentReply)) {
+          content = content.replace(contentReply, "").trim(); // Loại bỏ reply khỏi content
+        }
+      
+        // Kiểm tra hình ảnh
         const image = child.querySelector("img");
         if (image && image.src) {
           imageUrl = image.src;
         }
-
-        if (child.classList.contains("x1mzt3pk")) {
-          const replyDiv = child.querySelector("div");
-          if (replyDiv) {
-            contentReply = replyDiv.innerText.trim();
-          }
-        }
       }
+      
+
 
       if (child.nodeType === Node.TEXT_NODE) {
         const text = child.textContent.trim();
@@ -258,7 +274,7 @@ async function extractMessageContent(messageElement) {
       }
     });
 
-    return extractedMessages; 
+    return extractedMessages;
   } catch (error) {
     console.error("Error extracting message content:", error);
     return [];
@@ -308,7 +324,7 @@ async function sendMessages(context) {
   }
 };
 
-async function sendMessageToUser(message){
+async function sendMessageToUser(message) {
   function send_text(text) {
     const dataTransfer = new DataTransfer();
     dataTransfer.setData("text/plain", text);
