@@ -227,7 +227,7 @@ async function sendMessages(context) {
   const formattedMessages = { context: context };
   try {
     const response = await fetch(
-      "https://api-ext.bookdee.vn/services/generate-confirm",
+      "https://api-ext.bookdee.vn/cs/get-confirm",
       {
         method: "POST",
         headers: {
@@ -270,7 +270,7 @@ async function sendMessageToUser(message){
 
   setTimeout(() => {
     const sendButton = document.querySelector(
-      'div[aria-label="Nhấn Enter để gửi"]'
+      'div[aria-label="Nhấn Enter để gửi"], div[aria-label="Press Enter to send"]'
     );
     if (sendButton) {
       sendButton.click();

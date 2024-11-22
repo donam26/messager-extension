@@ -6,7 +6,7 @@ import {
 let scrollInterval;
 let allMessages = [];
 let seenMessages = new Set();
-
+console.log('ok')
 const processor = await AutoProcessor.from_pretrained(
   "Xenova/clip-vit-base-patch16"
 );
@@ -40,7 +40,7 @@ const observer = new MutationObserver((mutations) => {
         startButton.addEventListener("click", scrollMax);
 
         let stopButton = document.createElement("button");
-        stopButton.innerText = "Send";
+        stopButton.innerText = "Send2";
         stopButton.style.padding = "6px 14px";
         stopButton.style.fontSize = "14px";
         stopButton.style.backgroundColor = "#f44336";
@@ -126,7 +126,6 @@ function getMessage() {
         messageData.forEach((data) => {
           const uniqueMessageId = generateHash(data);
 
-          console.log('Adding message:', data);
           allMessages.push(data); // Thêm toàn bộ đối tượng vào mảng allMessages
           seenMessages.add(uniqueMessageId);
         });
@@ -167,7 +166,6 @@ async function convert2Vector(imgUrl) {
 }
 
 async function stopScroll() {
-  console.log("after filter:", allMessages);
   let messages = []
 
   if (scrollInterval) {
@@ -209,11 +207,13 @@ async function extractMessageContent(messageElement) {
   let sender = ""; // Người gửi tin nhắn: user hoặc assistant
 
   try {
-    const senderSpan = messageElement.querySelector(".html-span.xdj266r");
-    if (senderSpan && senderSpan.innerText.trim() === "Bạn đã gửi") {
-      sender = "assistant";
-    } else {
+    const senderSpan = messageElement.querySelector(".xuk3077.x78zum5.x1q0g3np.x1nhvcw1.x2lwn1j.xeuugli.x1jchvi3.xlxfd2w.x1gslohp.x126k92a");
+    console.log('senderSpan')
+    console.log(senderSpan)
+    if (senderSpan) {
       sender = "user";
+    } else {
+      sender = "assistant";
     }
     const childElements = Array.from(messageElement.childNodes);
     childElements.forEach((child) => {
@@ -222,7 +222,6 @@ async function extractMessageContent(messageElement) {
       let imageUrl = ""; // URL hình ảnh (nếu có)
 
       if (child.nodeType === Node.ELEMENT_NODE) {
-        console.log("child", child);
       
         // Kiểm tra nếu là thẻ chứa reply
         if (
@@ -287,8 +286,6 @@ function extractAllSpans(parentElement) {
     return [];
   }
 
-  console.log(parentElement);
-
   const spans = parentElement.querySelectorAll("span");
   const spanContents = [];
 
@@ -307,7 +304,7 @@ async function sendMessages(context) {
   const formattedMessages = { context: context };
   try {
     const response = await fetch(
-      "https://api-ext.bookdee.vn/services/generate-confirm",
+      "https://api-ext.bookdee.vn/cs/get-confirm",
       {
         method: "POST",
         headers: {
@@ -318,7 +315,7 @@ async function sendMessages(context) {
     );
 
     const data = await response.json();
-    sendMessageToUser(data.response);
+    await sendMessageToUser(data.response);
   } catch (error) {
     console.error("Error:", error);
   }
@@ -326,31 +323,35 @@ async function sendMessages(context) {
 
 async function sendMessageToUser(message) {
   function send_text(text) {
-    const dataTransfer = new DataTransfer();
-    dataTransfer.setData("text/plain", text);
-    const event = new ClipboardEvent("paste", {
-      clipboardData: dataTransfer,
-      bubbles: true,
-    });
-
-    const el = document.querySelector(
-      '[contenteditable="true"][role="textbox"]'
-    );
+    const el = document.querySelector('[placeholder="Reply in Messenger…"], [placeholder="Trả lời trong Messenger…"]');
 
     if (!el) {
       console.error("Không thể tìm thấy hộp thoại nhập tin nhắn.");
       return;
     }
-
-    el.focus();
-    el.dispatchEvent(event);
+  
+    el.click(); // Kích hoạt thẻ
+    el.focus(); // Focus vào thẻ
+  
+    // Gõ từng ký tự
+    for (const char of text) {
+      const event = new KeyboardEvent("keypress", { bubbles: true, key: char });
+      el.dispatchEvent(event);
+      el.value += char; // Gán từng ký tự vào giá trị
+    }
+  
+    // Kích hoạt sự kiện 'input' sau khi hoàn tất
+    const inputEvent = new Event("input", { bubbles: true });
+    el.dispatchEvent(inputEvent);
+  
+    console.log("Tin nhắn đã được nhập thành công.");
   }
-
+  
   send_text(message);
 
   setTimeout(() => {
     const sendButton = document.querySelector(
-      'div[aria-label="Nhấn Enter để gửi"]'
+      'div[aria-label="Send"]'
     );
     if (sendButton) {
       sendButton.click();
