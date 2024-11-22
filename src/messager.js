@@ -3,7 +3,6 @@ import {
   CLIPVisionModelWithProjection,
   RawImage,
 } from "@xenova/transformers";
-alert('mess2')
 let scrollInterval;
 let allMessages = []; 
 let seenMessages = new Set(); 

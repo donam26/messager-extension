@@ -6,7 +6,6 @@ import {
 let scrollInterval;
 let allMessages = [];
 let seenMessages = new Set();
-console.log('ok')
 const processor = await AutoProcessor.from_pretrained(
   "Xenova/clip-vit-base-patch16"
 );
