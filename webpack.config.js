@@ -1,6 +1,7 @@
 const path = require('path');
 const TerserPlugin = require('terser-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const webpack = require('webpack');
 
 module.exports = {
   mode: 'production',
@@ -12,11 +13,13 @@ module.exports = {
     messager: './src/messager.js',
     facebook: './src/facebook.js',
     business: './src/business.js',
+    popup: './src/popup.js'
   },
 
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: '[name].js',
+    publicPath: '/',
   },
 
   module: {
@@ -26,7 +29,7 @@ module.exports = {
         use: [
           MiniCssExtractPlugin.loader,
           'css-loader',
-          'postcss-loader' // Add postcss-loader to process Tailwind CSS
+          'postcss-loader'
         ],
       },
       {
@@ -41,13 +44,16 @@ module.exports = {
             ]
           }
         }
-      },
+      }
     ],
   },
 
   plugins: [
     new MiniCssExtractPlugin({
       filename: '[name].css',
+    }),
+    new webpack.ProvidePlugin({
+      process: 'process/browser',
     }),
   ],
 
@@ -59,4 +65,16 @@ module.exports = {
       }),
     ],
   },
+
+  resolve: {
+    fallback: {
+      "fs": false,
+      "path": false,
+      "crypto": false,
+      "process": require.resolve("process/browser")
+    },
+    alias: {
+      process: "process/browser"
+    }
+  }
 };

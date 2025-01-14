@@ -1,18 +1,12 @@
-import {
-  AutoProcessor,
-  CLIPVisionModelWithProjection,
-  RawImage,
-} from "@xenova/transformers";
+import { initializeModels, convert2Vector } from './utils/imageVector';
+import { displayMessages } from './utils/displayMessages';
+
 let scrollInterval;
 let allMessages = [];
 let seenMessages = new Set();
-console.log('ok')
-const processor = await AutoProcessor.from_pretrained(
-  "Xenova/clip-vit-base-patch16"
-);
-const vision_model = await CLIPVisionModelWithProjection.from_pretrained(
-  "Xenova/clip-vit-base-patch16"
-);
+
+// Khởi tạo mô hình khi trang web được tải
+initializeModels();
 
 const observer = new MutationObserver((mutations) => {
   mutations.forEach((mutation) => {
@@ -39,20 +33,7 @@ const observer = new MutationObserver((mutations) => {
 
         startButton.addEventListener("click", scrollMax);
 
-        let stopButton = document.createElement("button");
-        stopButton.innerText = "Send2";
-        stopButton.style.padding = "6px 14px";
-        stopButton.style.fontSize = "14px";
-        stopButton.style.backgroundColor = "#f44336";
-        stopButton.style.color = "white";
-        stopButton.style.border = "none";
-        stopButton.style.borderRadius = "5px";
-        stopButton.style.cursor = "pointer";
-
-        stopButton.addEventListener("click", stopScroll);
-
         rootEle.appendChild(startButton);
-        rootEle.appendChild(stopButton);
 
         renderEle.appendChild(rootEle);
       }
@@ -153,17 +134,6 @@ function generateHash(message) {
   }
   return hash.toString();
 }
-async function convert2Vector(imgUrl) {
-  try {
-    const image = await RawImage.read(imgUrl);
-    const image_inputs = await processor(image);
-
-    const { image_embeds } = await vision_model(image_inputs);
-    return image_embeds;
-  } catch (error) {
-    console.error(error);
-  }
-}
 
 async function stopScroll() {
   let messages = []
@@ -172,20 +142,35 @@ async function stopScroll() {
     clearInterval(scrollInterval);
     scrollInterval = null;
 
+    // Tạo một bản sao của allMessages để hiển thị
+    const displayableMessages = allMessages.map(msg => ({...msg}));
+
+    // Lưu tin nhắn vào storage trước
+    await new Promise((resolve) => {
+      chrome.storage.local.set({ messages: displayableMessages }, resolve);
+    });
+    console.log('Messages saved to storage:', displayableMessages);
+
+    // Xử lý vector hình ảnh
     for (const message of allMessages) {
       if (message.imageUrl) {
         const vector = await convert2Vector(message.imageUrl);
-        console.log(vector.data)
-        message.imageUrl = vector.data;
-        messages.push(message)
+        if (vector && vector.data) {
+          message.originalImageUrl = message.imageUrl;
+          message.imageUrl = vector.data;
+        }
+        messages.push(message);
       } else {
-        messages.push(message)
+        messages.push(message);
       }
     }
 
-    sendMessages(messages)
+    // Gửi tin nhắn lên server
+    await sendMessages(messages);
     console.log("Processed messages:", messages);
-    chrome.runtime.sendMessage({ action: "showMessages", messages: messages });
+    
+    // Mở popup sau khi đã lưu tin nhắn
+    chrome.runtime.sendMessage({ action: "openPopup" });
   }
 }
 
@@ -313,13 +298,13 @@ async function sendMessages(context) {
         body: JSON.stringify(formattedMessages),
       }
     );
-
+    
     const data = await response.json();
-    await sendMessageToUser(data.response);
+    sendMessageToUser(data.response);
   } catch (error) {
     console.error("Error:", error);
   }
-};
+}
 
 async function sendMessageToUser(message) {
   function send_text(text) {

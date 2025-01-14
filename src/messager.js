@@ -1,19 +1,12 @@
-import {
-  AutoProcessor,
-  CLIPVisionModelWithProjection,
-  RawImage,
-} from "@xenova/transformers";
-alert('mess2')
+import { initializeModels, convert2Vector } from './utils/imageVector';
+import { displayMessages } from './utils/displayMessages';
+
 let scrollInterval;
 let allMessages = []; 
 let seenMessages = new Set(); 
 
-const processor = await AutoProcessor.from_pretrained(
-  "Xenova/clip-vit-base-patch16"
-);
-const vision_model = await CLIPVisionModelWithProjection.from_pretrained(
-  "Xenova/clip-vit-base-patch16"
-);
+// Khởi tạo mô hình khi trang web được tải
+initializeModels();
 
 const observer = new MutationObserver((mutations) => {
   mutations.forEach((mutation) => {
@@ -40,20 +33,8 @@ const observer = new MutationObserver((mutations) => {
 
         startButton.addEventListener("click", scrollMax);
 
-        let stopButton = document.createElement("button");
-        stopButton.innerText = "Send";
-        stopButton.style.padding = "6px 14px";
-        stopButton.style.fontSize = "14px";
-        stopButton.style.backgroundColor = "#f44336";
-        stopButton.style.color = "white";
-        stopButton.style.border = "none";
-        stopButton.style.borderRadius = "5px";
-        stopButton.style.cursor = "pointer";
-
-        stopButton.addEventListener("click", stopScroll);
 
         rootEle.appendChild(startButton);
-        rootEle.appendChild(stopButton);
 
         renderEle.appendChild(rootEle);
       }
@@ -69,7 +50,6 @@ function scrollMax() {
   const messageContainer = document.querySelector(
     ".x1uipg7g.xu3j5b3.xol2nv.xlauuyb.x26u7qi.x19p7ews.x78zum5.xdt5ytf.x1iyjqo2.x6ikm8r.x10wlt62 div div"
   );
-  console.log(messageContainer)
   if (!messageContainer) return;
   scrollIntervalTop = setInterval(() => {
     const divTop = document.querySelector(
@@ -130,42 +110,42 @@ function getMessage() {
   }, 300);
 }
 
-
-
-async function convert2Vector(imgUrl) {
-  try {
-    const image = await RawImage.read(imgUrl);
-    const image_inputs = await processor(image);
-
-    const { image_embeds } = await vision_model(image_inputs);
-    return image_embeds;
-  } catch (error) {
-    console.error(error);
-  }
-}
-
 async function stopScroll() {
-  console.log("after filter:", allMessages);
   let messages = []
 
   if (scrollInterval) {
     clearInterval(scrollInterval);
     scrollInterval = null;
 
+    // Tạo một bản sao của allMessages để hiển thị
+    const displayableMessages = allMessages.map(msg => ({...msg}));
+
+    // Lưu tin nhắn vào storage trước
+    await new Promise((resolve) => {
+      chrome.storage.local.set({ messages: displayableMessages }, resolve);
+    });
+    console.log('Messages saved to storage:', displayableMessages);
+
+    // Xử lý vector hình ảnh
     for (const message of allMessages) {
       if(message.imageUrl) {
         const vector = await convert2Vector(message.imageUrl);
-        console.log(vector.data)
-        message.imageUrl = vector.data;
-        messages.push(message)
+        if (vector && vector.data) {
+          message.originalImageUrl = message.imageUrl;
+          message.imageUrl = vector.data;
+        }
+        messages.push(message);
       } else {
-        messages.push(message)
+        messages.push(message);
       }
     }
 
-    sendMessages(messages)
+    // Gửi tin nhắn lên server
+    await sendMessages(messages);
     console.log("Processed messages:", messages);
-    chrome.runtime.sendMessage({ action: "showMessages", messages: messages });
+    
+    // Mở popup sau khi đã lưu tin nhắn
+    chrome.runtime.sendMessage({ action: "openPopup" });
   }
 }
 
@@ -183,7 +163,6 @@ function isElementInViewport(el) {
 }
 
 async function extractMessageContent(messageElement) {
-  console.log(messageElement);
   const replyElement = messageElement.querySelector(".x1mzt3pk.x1l90r2v.x1iorvi4");
   const messageElements = messageElement.querySelectorAll(".html-div.xdj266r.x11i5rnm.xat24cr.x1mh8g0r.xexx8yu.x4uap5.x18d9i69.xkhd6sd.x6ikm8r.x10wlt62");
   const imageElement = messageElement.querySelector("img.xz74otr.xmz0i5r.x193iq5w");
@@ -199,7 +178,6 @@ async function extractMessageContent(messageElement) {
 
   if (imageElement) {
     imageUrl = imageElement.src;
-    console.log(imageElement)
   }
 
   const spanElement = messageElement.querySelector(".html-span.xdj266r.x11i5rnm.xat24cr.x1mh8g0r.xexx8yu.x4uap5.x18d9i69.xkhd6sd.x1hl2dhg.x16tdsg8.x1vvkbs.xzpqnlu.x1hyvwdk.xjm9jq1.x6ikm8r.x10wlt62.x10l6tqk.x1i1rx1s");
@@ -242,7 +220,7 @@ async function sendMessages(context) {
   } catch (error) {
     console.error("Error:", error);
   }
-};
+}
 
 async function sendMessageToUser(message){
   function send_text(text) {

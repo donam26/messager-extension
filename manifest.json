@@ -3,7 +3,13 @@
   "name": "Myla-Messager Extension",
   "version": "1.0.0",
   "description": "Myla-Messager Extension",
-  "permissions": ["storage", "activeTab", "notifications", "scripting"],
+  "permissions": [
+    "storage", 
+    "activeTab", 
+    "notifications", 
+    "scripting",
+    "windows"
+  ],
   "host_permissions": ["<all_urls>"],
   "icons": {
     "128": "icon.png"
@@ -15,18 +21,15 @@
   },
   "content_scripts": [
     {
-      "css": ["src/css/messager.css"],
       "js": ["dist/messager.js"],
       "matches": ["*://*.facebook.com/messages/*"]
     },
     {
-      "css": ["src/css/messager.css"],
       "js": ["dist/facebook.js"],
       "matches": ["*://www.facebook.com/*"],
       "exclude_matches": ["*://www.facebook.com/messages/*"]
     },
     {
-      "css": ["src/css/messager.css"],
       "js": ["dist/business.js"],
       "matches": ["*://*.business.facebook.com/*"]
     }
