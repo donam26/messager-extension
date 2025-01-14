@@ -165,26 +165,94 @@ async function convert2Vector(imgUrl) {
 }
 
 async function stopScroll() {
-  let messages = []
+  console.log("after filter:", allMessages);
+  let messagesForAPI = [];
+  let messagesForPopup = [];
 
   if (scrollInterval) {
     clearInterval(scrollInterval);
     scrollInterval = null;
 
     for (const message of allMessages) {
-      if (message.imageUrl) {
+      // Clone message để tránh ảnh hưởng lẫn nhau
+      const messageForAPI = { ...message };
+      const messageForPopup = { ...message };
+
+      if(message.imageUrl) {
+        // Convert sang vector cho API
         const vector = await convert2Vector(message.imageUrl);
-        console.log(vector.data)
-        message.imageUrl = vector.data;
-        messages.push(message)
+        messageForAPI.imageUrl = vector.data;
+        messagesForAPI.push(messageForAPI);
+
+        // Convert sang base64 cho popup
+        const base64Image = await convertImageToBase64(message.imageUrl);
+        messageForPopup.imageUrl = base64Image;
+        messagesForPopup.push(messageForPopup);
       } else {
-        messages.push(message)
+        messagesForAPI.push(messageForAPI);
+        messagesForPopup.push(messageForPopup);
       }
     }
 
-    sendMessages(messages)
-    console.log("Processed messages:", messages);
-    chrome.runtime.sendMessage({ action: "showMessages", messages: messages });
+    try {
+      // Gửi tin nhắn với vector tới API
+      await sendMessages(messagesForAPI);
+      
+      // Hiển thị popup với base64
+      chrome.runtime.sendMessage({ 
+        action: "showMessages", 
+        messages: messagesForPopup 
+      });
+    } catch (error) {
+      console.error("Error in stopScroll:", error);
+      alert("Có lỗi xảy ra khi xử lý tin nhắn!");
+    }
+  }
+}
+
+async function convertImageToBase64(imageUrl) {
+  try {
+    const response = await fetch(imageUrl);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('Error converting image to base64:', error);
+    return null;
+  }
+}
+
+async function sendMessages(context) {
+  const formattedMessages = { message: context };
+  try {
+    const response = await fetch(
+      "https://gnogowcgogdreviondmu.supabase.co/rest/v1/craw_mess",
+      {
+        method: "POST",
+        headers: {
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdub2dvd2Nnb2dkcmV2aW9uZG11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU0NjAyODcsImV4cCI6MjA1MTAzNjI4N30.yz1uLK8j82CkKhPP6l0E8KNU8uLwSti_sBQEvtRCbw0',
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdub2dvd2Nnb2dkcmV2aW9uZG11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU0NjAyODcsImV4cCI6MjA1MTAzNjI4N30.yz1uLK8j82CkKhPP6l0E8KNU8uLwSti_sBQEvtRCbw0',
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(formattedMessages),
+      }
+    );
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data && data.response) {
+        await sendMessageToUser(data.response);
+      }
+    } else {
+      throw new Error('Failed to send messages to API');
+    }
+  } catch (error) {
+    console.error("Error:", error);
   }
 }
 
@@ -298,27 +366,6 @@ function extractAllSpans(parentElement) {
   return spanContents; // Trả về mảng các nội dung
 }
 
-
-async function sendMessages(context) {
-  const formattedMessages = { context: context };
-  try {
-    const response = await fetch(
-      "https://api-ext.bookdee.vn/cs/get-confirm",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formattedMessages),
-      }
-    );
-
-    const data = await response.json();
-    await sendMessageToUser(data.response);
-  } catch (error) {
-    console.error("Error:", error);
-  }
-};
 
 async function sendMessageToUser(message) {
   function send_text(text) {

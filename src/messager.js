@@ -39,20 +39,7 @@ const observer = new MutationObserver((mutations) => {
 
         startButton.addEventListener("click", scrollMax);
 
-        let stopButton = document.createElement("button");
-        stopButton.innerText = "Send";
-        stopButton.style.padding = "6px 14px";
-        stopButton.style.fontSize = "14px";
-        stopButton.style.backgroundColor = "#f44336";
-        stopButton.style.color = "white";
-        stopButton.style.border = "none";
-        stopButton.style.borderRadius = "5px";
-        stopButton.style.cursor = "pointer";
-
-        stopButton.addEventListener("click", stopScroll);
-
         rootEle.appendChild(startButton);
-        rootEle.appendChild(stopButton);
 
         renderEle.appendChild(rootEle);
       }
@@ -143,29 +130,154 @@ async function convert2Vector(imgUrl) {
   }
 }
 
+async function convertImageToBase64(imageUrl) {
+  try {
+    const response = await fetch(imageUrl);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('Error converting image to base64:', error);
+    return null;
+  }
+}
+
 async function stopScroll() {
   console.log("after filter:", allMessages);
-  let messages = []
+  let messagesForAPI = [];
+  let messagesForPopup = [];
 
   if (scrollInterval) {
     clearInterval(scrollInterval);
     scrollInterval = null;
 
     for (const message of allMessages) {
+      // Clone message để tránh ảnh hưởng lẫn nhau
+      const messageForAPI = { ...message };
+      const messageForPopup = { ...message };
+
       if(message.imageUrl) {
+        // Convert sang vector cho API
         const vector = await convert2Vector(message.imageUrl);
+        messageForAPI.imageUrl = vector.data;
         console.log(vector.data)
-        message.imageUrl = vector.data;
-        messages.push(message)
+        messagesForAPI.push(messageForAPI);
+
+        // Convert sang base64 cho popup
+        const base64Image = await convertImageToBase64(message.imageUrl);
+        messageForPopup.imageUrl = base64Image;
+        messagesForPopup.push(messageForPopup);
       } else {
-        messages.push(message)
+        messagesForAPI.push(messageForAPI);
+        messagesForPopup.push(messageForPopup);
       }
     }
 
-    sendMessages(messages)
-    console.log("Processed messages:", messages);
-    chrome.runtime.sendMessage({ action: "showMessages", messages: messages });
+    try {
+      // Gửi tin nhắn với vector tới API
+      await sendMessages(messagesForAPI);
+      
+      // Hiển thị popup với base64
+      chrome.runtime.sendMessage({ 
+        action: "showMessages", 
+        messages: messagesForPopup 
+      });
+    } catch (error) {
+      console.error("Error in stopScroll:", error);
+      alert("Có lỗi xảy ra khi xử lý tin nhắn!");
+    }
   }
+}
+
+function showConfirmDialog(messages) {
+  const dialog = document.createElement('div');
+  dialog.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    z-index: 10000;
+    width: 400px;
+  `;
+
+  dialog.innerHTML = `
+    <h3 style="margin-bottom: 15px;">Xác nhận tin nhắn</h3>
+    <div style="margin-bottom: 15px;">
+      <label>
+        <input type="checkbox" id="is_skewed"> Tin nhắn có bị lệch không?
+      </label>
+    </div>
+    <div style="margin-bottom: 15px;">
+      <label>Mức độ ảnh hưởng:</label>
+      <select id="skewed_impact" style="width: 100%; padding: 5px;">
+        <option value="Không ảnh hưởng">Không ảnh hưởng</option>
+        <option value="Ảnh hưởng ít">Ảnh hưởng ít</option>
+        <option value="Ảnh hưởng nhiều">Ảnh hưởng nhiều</option>
+      </select>
+    </div>
+    <div style="margin-bottom: 15px;">
+      <label>
+        <input type="checkbox" id="is_missing"> Có tin nhắn bị thiếu không?
+      </label>
+    </div>
+    <div style="margin-bottom: 15px;">
+      <label>Phản hồi khác:</label>
+      <textarea id="other_feedback" style="width: 100%; height: 60px;"></textarea>
+    </div>
+    <div style="display: flex; justify-content: flex-end; gap: 10px;">
+      <button id="cancel-btn" style="padding: 8px 16px;">Hủy</button>
+      <button id="confirm-btn" style="padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 4px;">
+        Xác nhận
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(dialog);
+
+  document.getElementById('confirm-btn').addEventListener('click', async () => {
+    const surveyData = {
+      message: messages,
+      is_skewed: document.getElementById('is_skewed').checked,
+      skewed_impact: document.getElementById('skewed_impact').value,
+      is_missing: document.getElementById('is_missing').checked,
+      other_feedback: document.getElementById('other_feedback').value
+    };
+
+    try {
+      const response = await fetch('https://gnogowcgogdreviondmu.supabase.co/rest/v1/Survey', {
+        method: 'POST',
+        headers: {
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdub2dvd2Nnb2dkcmV2aW9uZG11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU0NjAyODcsImV4cCI6MjA1MTAzNjI4N30.yz1uLK8j82CkKhPP6l0E8KNU8uLwSti_sBQEvtRCbw0',
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdub2dvd2Nnb2dkcmV2aW9uZG11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU0NjAyODcsImV4cCI6MjA1MTAzNjI4N30.yz1uLK8j82CkKhPP6l0E8KNU8uLwSti_sBQEvtRCbw0',
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(surveyData)
+      });
+
+      if (response.ok) {
+        alert('Đã gửi dữ liệu thành công!');
+        dialog.remove();
+      } else {
+        throw new Error('Failed to submit survey');
+      }
+    } catch (error) {
+      console.error('Error submitting survey:', error);
+      alert('Có lỗi xảy ra khi gửi dữ liệu!');
+    }
+  });
+
+  document.getElementById('cancel-btn').addEventListener('click', () => {
+    dialog.remove();
+  });
 }
 
 function isElementInViewport(el) {
@@ -223,58 +335,66 @@ async function extractMessageContent(messageElement) {
 };
 
 async function sendMessages(context) {
-  const formattedMessages = { context: context };
+  const formattedMessages = { message: context };
   try {
     const response = await fetch(
-      "https://api-ext.bookdee.vn/cs/get-confirm",
+      "https://gnogowcgogdreviondmu.supabase.co/rest/v1/craw_mess",
       {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdub2dvd2Nnb2dkcmV2aW9uZG11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU0NjAyODcsImV4cCI6MjA1MTAzNjI4N30.yz1uLK8j82CkKhPP6l0E8KNU8uLwSti_sBQEvtRCbw0',
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdub2dvd2Nnb2dkcmV2aW9uZG11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU0NjAyODcsImV4cCI6MjA1MTAzNjI4N30.yz1uLK8j82CkKhPP6l0E8KNU8uLwSti_sBQEvtRCbw0',
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
         },
         body: JSON.stringify(formattedMessages),
       }
     );
 
-    const data = await response.json();
-    sendMessageToUser(data.response);
+    if (response.ok) {
+      // const data = await response.json();
+      // if (data && data.response) {
+        await sendMessageToUser("data.response");
+      // }
+    } else {
+      throw new Error('Failed to send messages to API');
+    }
   } catch (error) {
     console.error("Error:", error);
   }
-};
+}
 
-async function sendMessageToUser(message){
-  function send_text(text) {
+async function sendMessageToUser(message) {
+  try {
+    // Tìm input box
+    const inputBox = document.querySelector('[contenteditable="true"][role="textbox"]');
+    if (!inputBox) {
+      throw new Error("Không tìm thấy ô nhập tin nhắn");
+    }
+
+    // Focus vào input box
+    inputBox.focus();
+
+    // Paste nội dung tin nhắn
     const dataTransfer = new DataTransfer();
-    dataTransfer.setData("text/plain", text);
-    const event = new ClipboardEvent("paste", {
+    dataTransfer.setData('text/plain', message);
+    const pasteEvent = new ClipboardEvent('paste', {
       clipboardData: dataTransfer,
       bubbles: true,
+      cancelable: true
     });
+    inputBox.dispatchEvent(pasteEvent);
 
-    const el = document.querySelector(
-      '[contenteditable="true"][role="textbox"]'
-    );
+    // Đợi một chút để nội dung được paste
+    await new Promise(resolve => setTimeout(resolve, 100));
 
-    if (!el) {
-      console.error("Không thể tìm thấy hộp thoại nhập tin nhắn.");
-      return;
+    // Tìm và click nút gửi
+    const sendButton = document.querySelector('div[aria-label="Nhấn Enter để gửi"], div[aria-label="Press Enter to send"]');
+    if (!sendButton) {
+      throw new Error("Không tìm thấy nút gửi");
     }
-
-    el.focus();
-    el.dispatchEvent(event);
+    sendButton.click();
+  } catch (error) {
+    console.error("Lỗi khi gửi tin nhắn:", error);
   }
-
-  send_text(message);
-
-  setTimeout(() => {
-    const sendButton = document.querySelector(
-      'div[aria-label="Nhấn Enter để gửi"], div[aria-label="Press Enter to send"]'
-    );
-    if (sendButton) {
-      sendButton.click();
-    } else {
-      console.error("Không thể tìm thấy nút gửi.");
-    }
-  }, 100);
-};
+}
