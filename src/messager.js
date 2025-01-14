@@ -388,12 +388,7 @@ async function sendMessageToUser(message) {
     // Đợi một chút để nội dung được paste
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    // Tìm và click nút gửi
-    const sendButton = document.querySelector('div[aria-label="Nhấn Enter để gửi"], div[aria-label="Press Enter to send"]');
-    if (!sendButton) {
-      throw new Error("Không tìm thấy nút gửi");
-    }
-    sendButton.click();
+    
   } catch (error) {
     console.error("Lỗi khi gửi tin nhắn:", error);
   }

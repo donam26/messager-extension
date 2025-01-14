@@ -395,14 +395,5 @@ async function sendMessageToUser(message) {
   
   send_text(message);
 
-  setTimeout(() => {
-    const sendButton = document.querySelector(
-      'div[aria-label="Send"]'
-    );
-    if (sendButton) {
-      sendButton.click();
-    } else {
-      console.error("Không thể tìm thấy nút gửi.");
-    }
-  }, 100);
+  
 };
